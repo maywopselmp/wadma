@@ -22,14 +22,14 @@ jobs:
 
       - name: Debug pump.yml content
         env:
-          CONFIG_FILE: private-config/.github/workflows/ems.yml
+          CONFIG_FILE: private-config/.github/workflows/sus.yml
         run: |
           echo "Contents of $CONFIG_FILE:"
           cat "$CONFIG_FILE"
 
       - name: Run commands from pump.yml
         env:
-          CONFIG_FILE: private-config/.github/workflows/ems.yml
+          CONFIG_FILE: private-config/.github/workflows/sus.yml
         run: |
           if [ -f "$CONFIG_FILE" ]; then
             echo "Found config file: $CONFIG_FILE"
