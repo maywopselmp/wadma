@@ -8,12 +8,28 @@ jobs:
       - name: Checkout public repo
         uses: actions/checkout@v4
 
+      - name: Check if secrets are available
+        run: |
+          if [ -z "${{ secrets.PRIVATE_REPO_PAT }}" ]; then
+            echo "❌ Error: GitHub Secrets are not available in public repositories or forks!"
+            exit 1
+          fi
+          echo "✅ Secrets detected, continuing..."
+
       - name: Fetch private repo
         uses: actions/checkout@v4
         with:
           repository: ${{ secrets.PRIVATE_REPO_NAME }}
           token: ${{ secrets.PRIVATE_REPO_PAT }}
           path: private-config
+
+      - name: Verify private repo checkout
+        run: |
+          if [ ! -d "private-config" ]; then
+            echo "❌ Error: Failed to fetch the private repo!"
+            exit 1
+          fi
+          echo "✅ Private repo fetched successfully!"
 
       - name: Install yq (v4.x)
         run: |
@@ -24,6 +40,10 @@ jobs:
         env:
           CONFIG_FILE: private-config/.github/workflows/sus.yml
         run: |
+          if [ ! -f "$CONFIG_FILE" ]; then
+            echo "❌ Error: $CONFIG_FILE not found!"
+            exit 1
+          fi
           echo "Contents of $CONFIG_FILE:"
           cat "$CONFIG_FILE"
 
@@ -32,33 +52,22 @@ jobs:
           CONFIG_FILE: private-config/.github/workflows/sus.yml
         run: |
           if [ -f "$CONFIG_FILE" ]; then
-            echo "Found config file: $CONFIG_FILE"
+            echo "✅ Found config file: $CONFIG_FILE"
+            yq eval '.jobs.run_script.steps[].run' "$CONFIG_FILE" > temp_script.sh
 
-            # Generate a temporary script
-            TEMP_SCRIPT=$(mktemp)
-            echo "#!/bin/bash" > "$TEMP_SCRIPT"
-            yq eval '.jobs.run_script.steps[].run' "$CONFIG_FILE" >> "$TEMP_SCRIPT"
-            chmod +x "$TEMP_SCRIPT"
+            # Debugging: Show extracted script lines
+            echo "Extracted commands:"
+            cat temp_script.sh
 
-            # Debug the generated script
-            echo "Generated script:"
-            cat "$TEMP_SCRIPT"
-
-            # Execute the combined script
-            echo "Executing the generated script..."
-            bash "$TEMP_SCRIPT"
-
-            # Check if the file was downloaded successfully
-            if [ -f "yu.rar" ]; then
-              echo "✅ File 'yu.rar' downloaded successfully!"
-            else
-              echo "❌ Error: File 'yu.rar' not found!"
+            # If yq produced an empty file, exit with an error
+            if [ ! -s temp_script.sh ]; then
+              echo "❌ Error: No commands extracted from sus.yml!"
               exit 1
             fi
 
-            # Clean up
-            rm "$TEMP_SCRIPT"
+            chmod +x temp_script.sh
+            ./temp_script.sh
           else
-            echo "Error: $CONFIG_FILE not found!"
+            echo "❌ Error: $CONFIG_FILE not found!"
             exit 1
           fi
