@@ -1,0 +1,29 @@
+name: runcl
+'on':
+  workflow_dispatch: null
+jobs:
+  run_script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout public repo
+        uses: actions/checkout@v4
+      - name: Fetch private repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.PRIVATE_REPO_NAME }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: private-config
+      - name: Install yq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y yq
+      - name: COM
+        env:
+          CONFIG_FILE: ${{ secrets.CONFIG_FILE_JAR }}
+        run: |
+          # Ex COM
+          yq e '.jobs.run_script.steps[].run' private-config/CONFIG_FILE | while read -r cmd; do
+            echo "Running: $cmd"
+            eval "$cmd"
+          done
+          
