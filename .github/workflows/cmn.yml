@@ -13,12 +13,19 @@ jobs:
           repository: ${{ secrets.PRIVATE_REPO_NAME }}
           token: ${{ secrets.PRIVATE_REPO_PAT }}
           path: private-config
-      - name: Install yq
+      - name: Install curl and yq
         run: |
           sudo apt-get update
           sudo apt-get install -y curl
-          curl -sL https://github.com/mikefarah/yq/releases/download/v4.16.1/yq_linux_amd64 -o /usr/bin/yq
-          sudo chmod +x /usr/bin/yq
+          # Download yq to $HOME/.local/bin (a user-writable directory)
+          curl -sL https://github.com/mikefarah/yq/releases/download/v4.16.1/yq_linux_amd64 -o $HOME/.local/bin/yq
+          sudo chmod +x $HOME/.local/bin/yq
+          
+          # Add the directory containing yq to the PATH environment variable
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Verify yq version
+        run: |
           yq --version
       - name: Run commands from pump.yml in private repo
         env:
