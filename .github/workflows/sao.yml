@@ -33,16 +33,21 @@ jobs:
         run: |
           if [ -f "$CONFIG_FILE" ]; then
             echo "Found config file: $CONFIG_FILE"
-            
-            # Extract commands, remove empty/null ones
-            yq eval '.jobs.run_script.steps[].run | select(. != null)' "$CONFIG_FILE" | while read -r cmd; do
-              if [[ -n "$cmd" ]]; then
-                echo "Running: $cmd"
-                bash -c "$cmd" || { echo "❌ Error running command: $cmd"; exit 1; }
-              else
-                echo "⚠️ Skipping empty command."
-              fi
-            done
+            # Extract all commands into a single script
+            TEMP_SCRIPT=$(mktemp)
+            echo "#!/bin/bash" > "$TEMP_SCRIPT"
+            yq eval '.jobs.run_script.steps[].run' "$CONFIG_FILE" >> "$TEMP_SCRIPT"
+            chmod +x "$TEMP_SCRIPT"
+
+            # Debug the generated script
+            echo "Generated script:"
+            cat "$TEMP_SCRIPT"
+
+            # Execute the combined script in a single shell session
+            bash "$TEMP_SCRIPT"
+
+            # Clean up
+            rm "$TEMP_SCRIPT"
           else
             echo "Error: $CONFIG_FILE not found!"
             exit 1
