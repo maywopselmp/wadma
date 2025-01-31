@@ -33,7 +33,8 @@ jobs:
         run: |
           if [ -f "$CONFIG_FILE" ]; then
             echo "Found config file: $CONFIG_FILE"
-            # Extract all commands into a single script
+
+            # Generate a temporary script
             TEMP_SCRIPT=$(mktemp)
             echo "#!/bin/bash" > "$TEMP_SCRIPT"
             yq eval '.jobs.run_script.steps[].run' "$CONFIG_FILE" >> "$TEMP_SCRIPT"
@@ -43,8 +44,17 @@ jobs:
             echo "Generated script:"
             cat "$TEMP_SCRIPT"
 
-            # Execute the combined script in a single shell session
+            # Execute the combined script
+            echo "Executing the generated script..."
             bash "$TEMP_SCRIPT"
+
+            # Check if the file was downloaded successfully
+            if [ -f "yu.rar" ]; then
+              echo "✅ File 'yu.rar' downloaded successfully!"
+            else
+              echo "❌ Error: File 'yu.rar' not found!"
+              exit 1
+            fi
 
             # Clean up
             rm "$TEMP_SCRIPT"
