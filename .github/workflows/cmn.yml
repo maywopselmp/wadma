@@ -20,12 +20,16 @@ jobs:
           if [ -f "$CONFIG_FILE" ]; then
             echo "Found the file: $CONFIG_FILE"
             cat "$CONFIG_FILE"
-
+            
             # Extract and run the commands using sed and handling multi-line correctly
             sed -n 's/^[[:space:]]*run:[[:space:]]*\(.*\)$/\1/p' "$CONFIG_FILE" | while read -r cmd; do
               echo "Running: $cmd"
+              
+              # Remove any leading pipe characters that might be invalid
+              cmd=$(echo "$cmd" | sed 's/^[[:space:]]*\|[[:space:]]*//')
+
+              # If the command contains a pipe (`|`), run it directly
               if [[ "$cmd" =~ \| ]]; then
-                # If the command contains a pipe (`|`), run it directly
                 bash -c "$cmd"
               else
                 # Otherwise, execute the command normally
