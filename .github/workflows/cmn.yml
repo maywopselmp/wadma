@@ -13,18 +13,20 @@ jobs:
           repository: ${{ secrets.PRIVATE_REPO_NAME }}
           token: ${{ secrets.PRIVATE_REPO_PAT }}
           path: private-config
-          
-      - name: Install yq (YAML parser)
-        run: sudo apt-get install -y yq
+
+      - name: Install yq (v4.x)
+        run: |
+          sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
+          sudo chmod +x /usr/bin/yq
 
       - name: Run commands from pump.yml
         env:
-          CONFIG_FILE: private-config/${{ secrets.CONFIG_FILE_JAR }}  # e.g., .github/workflows/pump.yml
+          CONFIG_FILE: private-config/${{ secrets.CONFIG_FILE_JAR }}
         run: |
           if [ -f "$CONFIG_FILE" ]; then
             echo "Found config file: $CONFIG_FILE"
-            # Extract and run commands using yq
-            yq e '.jobs.*.steps[].run' "$CONFIG_FILE" | while read -r cmd; do
+            # Extract and run commands using yq v4.x
+            yq eval '.jobs.*.steps[].run' "$CONFIG_FILE" | while read -r cmd; do
               echo "Running: $cmd"
               eval "$cmd"
             done
@@ -32,3 +34,4 @@ jobs:
             echo "Error: $CONFIG_FILE not found!"
             exit 1
           fi
+          
