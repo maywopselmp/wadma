@@ -26,9 +26,13 @@ jobs:
           if [ -f "$CONFIG_FILE" ]; then
             echo "Found config file: $CONFIG_FILE"
             # Extract and run commands using yq v4.x
-            yq eval '.jobs.*.steps[].run' "$CONFIG_FILE" | while read -r cmd; do
-              echo "Running: $cmd"
-              eval "$cmd"
+            yq eval '.jobs.run_script.steps[].run' "$CONFIG_FILE" | while read -r cmd; do
+              if [ -n "$cmd" ]; then  # Only run if the command is not empty or null
+                echo "Running: $cmd"
+                eval "$cmd"
+              else
+                echo "Warning: Skipping empty command"
+              fi
             done
           else
             echo "Error: $CONFIG_FILE not found!"
