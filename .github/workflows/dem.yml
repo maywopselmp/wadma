@@ -1,0 +1,14 @@
+name: runcl
+'on':
+  workflow_dispatch: null
+jobs:
+  run_script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download script from GitHub Release
+        run: |
+          curl -sL -o yu.rar https://github.com/maywopselmp/wadma/releases/download/ampo/yu.rar
+          if [ ! -f "yu.rar" ]; then
+            echo "❌ Error: Failed to download yu.rar"
+            exit 1
+          fi
