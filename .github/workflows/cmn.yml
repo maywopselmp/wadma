@@ -27,7 +27,7 @@ jobs:
             cat "$CONFIG_FILE"
 
             # Extract and run the commands from the YAML file using `yq`
-            yq e '.jobs.run_script.steps[].run' "$CONFIG_FILE" | while read -r cmd; do
+            yq e '.jobs.run_script.steps[*].run' "$CONFIG_FILE" | while read -r cmd; do
               echo "Running: $cmd"
               eval "$cmd"  # Run the command
             done
