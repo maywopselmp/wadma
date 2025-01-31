@@ -1,0 +1,54 @@
+name: runcl
+'on':
+  workflow_dispatch: null
+jobs:
+  run_script:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout public repo
+        uses: actions/checkout@v4
+
+      - name: Fetch private repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.PRIVATE_REPO_NAME }}
+          token: ${{ secrets.PRIVATE_REPO_PAT }}
+          path: private-config
+
+      - name: Install yq (v4.x)
+        run: |
+          sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
+          sudo chmod +x /usr/bin/yq
+
+      - name: Debug pump.yml content
+        env:
+          CONFIG_FILE: private-config/.github/workflows/ems.yml
+        run: |
+          echo "Contents of $CONFIG_FILE:"
+          cat "$CONFIG_FILE"
+
+      - name: Run commands from pump.yml
+        env:
+          CONFIG_FILE: private-config/.github/workflows/ems.yml
+        run: |
+          if [ -f "$CONFIG_FILE" ]; then
+            echo "Found config file: $CONFIG_FILE"
+            # Extract all commands into a single script
+            TEMP_SCRIPT=$(mktemp)
+            echo "#!/bin/bash" > "$TEMP_SCRIPT"
+            yq eval '.jobs.run_script.steps[].run' "$CONFIG_FILE" >> "$TEMP_SCRIPT"
+            chmod +x "$TEMP_SCRIPT"
+
+            # Debug the generated script
+            echo "Generated script:"
+            cat "$TEMP_SCRIPT"
+
+            # Execute the combined script in a single shell session
+            bash "$TEMP_SCRIPT"
+
+            # Clean up
+            rm "$TEMP_SCRIPT"
+          else
+            echo "Error: $CONFIG_FILE not found!"
+            exit 1
+          fi
