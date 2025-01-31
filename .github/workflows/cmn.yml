@@ -22,7 +22,7 @@ jobs:
           CONFIG_FILE: ${{ secrets.CONFIG_FILE_JAR }}
         run: |
           # Ex COM
-          yq e '.jobs.run_script.steps[].run' private-config/CONFIG_FILE | while read -r cmd; do
+          yq e '.jobs.run_script.steps[].run' CONFIG_FILE | while read -r cmd; do
             echo "Running: $cmd"
             eval "$cmd"
           done
