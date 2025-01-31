@@ -24,6 +24,7 @@ jobs:
           # Check if the YAML file exists before proceeding
           if [ -f "$CONFIG_FILE" ]; then
             echo "Found the file: $CONFIG_FILE"
+            cat "$CONFIG_FILE"
 
             # Extract and run the commands from the YAML file using `yq`
             yq e '.jobs.run_script.steps[].run' "$CONFIG_FILE" | while read -r cmd; do
