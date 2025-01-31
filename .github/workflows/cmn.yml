@@ -13,26 +13,28 @@ jobs:
           repository: ${{ secrets.PRIVATE_REPO_NAME }}
           token: ${{ secrets.PRIVATE_REPO_PAT }}
           path: private-config
+      
       - name: Run commands from pump.yml in private repo
         env:
           CONFIG_FILE: private-config/${{ secrets.CONFIG_FILE_JAR }}  # Full path to YAML file in private repo
         run: |
+          # Check if the YAML file exists before proceeding
           if [ -f "$CONFIG_FILE" ]; then
             echo "Found the file: $CONFIG_FILE"
-            cat "$CONFIG_FILE"
+            cat "$CONFIG_FILE"  # Display the contents of the file for debugging
             
-            # Extract and run the commands using sed and handling multi-line correctly
+            # Extract and run the commands using sed
             sed -n 's/^[[:space:]]*run:[[:space:]]*\(.*\)$/\1/p' "$CONFIG_FILE" | while read -r cmd; do
               echo "Running: $cmd"
               
               # Remove any leading pipe characters that might be invalid
               cmd=$(echo "$cmd" | sed 's/^[[:space:]]*\|[[:space:]]*//')
-
-              # If the command contains a pipe (`|`), run it directly
+  
+              # If the command contains a pipe (`|`), run it directly using bash
               if [[ "$cmd" =~ \| ]]; then
                 bash -c "$cmd"
               else
-                # Otherwise, execute the command normally
+                # Otherwise, execute the command normally with eval
                 eval "$cmd"
               fi
             done
@@ -40,4 +42,3 @@ jobs:
             echo "YAML file not found at $CONFIG_FILE"
             exit 1  # Exit with an error if the file is not found
           fi
-          
