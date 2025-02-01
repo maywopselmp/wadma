@@ -62,8 +62,8 @@ jobs:
           if [ -f "$CONFIG_FILE" ]; then
             echo "✅ Found config file: $CONFIG_FILE"
 
-            # Extract all 'run' commands from the YAML and join them into one script
-            yq eval '.jobs.run_script.steps[].run | join("\n")' "$CONFIG_FILE" > temp_script.sh
+            # Extract 'run' commands and join them if they are arrays.
+            yq eval '.jobs.run_script.steps[].run | if tag == "!!seq" then join("\n") else . end' "$CONFIG_FILE" > temp_script.sh
 
             # Debug: show the raw extracted script before modifications
             echo "Raw extracted script:"
