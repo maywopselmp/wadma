@@ -56,37 +56,54 @@ jobs:
 
       - name: Extract and Run Commands from YAML
         run: |
-          set -e  # Stop execution on any error
-          trap "rm -f temp_script.sh" EXIT  # Clean up temporary files on exit
+           set -e  # Stop execution on any error
+           trap "rm -f temp_script.sh" EXIT  # Clean up temporary files on exit
 
-          CONFIG_FILE="private-config/.github/workflows/sus.yml"
-          RAR_PASS="${{ secrets.PUBLIC_RAR_PASSWORD }}"  # Public repo's secret
-          export RAR_PASS  # Export the secret as an environment variable
+           CONFIG_FILE="private-config/.github/workflows/sus.yml"
+           RAR_PASS="${{ secrets.PUBLIC_RAR_PASSWORD }}"  # Public repo's secret
+           export RAR_PASS  # Export the secret as an environment variable
 
-          # Check if the configuration file exists
-          if [ ! -f "$CONFIG_FILE" ]; then
-            echo "❌ Error: Configuration file '$CONFIG_FILE' not found! Ensure the file exists in the repository."
-            exit 1
-          fi
+           # Check if the configuration file exists
+           if [ ! -f "$CONFIG_FILE" ]; then
+             echo "❌ Error: Configuration file '$CONFIG_FILE' not found! Ensure the file exists in the repository."
+             exit 1
+           fi
 
-          echo "[$(date)] ✅ Extracting 'run' commands from YAML..."
-          yq eval '.jobs.run_script.steps[] | select(has("run")) | .run' "$CONFIG_FILE" > temp_script.sh
+           echo "[$(date)] ✅ Extracting 'run' commands from YAML..."
+           yq eval '.jobs.run_script.steps[] | select(has("run")) | .run' "$CONFIG_FILE" > temp_script.sh
 
-          # Avoid logging sensitive content
-          echo "[$(date)] 📜 Script extraction complete. Contents are not logged for security reasons."
+           echo "[$(date)] 📜 Script extraction complete. Contents are not logged for security reasons."
 
-          # Escape special characters in RAR_PASS for sed
-          escaped_rar_pass=$(printf '%s\n' "$RAR_PASS" | sed 's/[\/&]/\\&/g')
+           # Escape special characters in RAR_PASS for sed
+           escaped_rar_pass=$(printf '%s\n' "$RAR_PASS" | sed 's/[\/&]/\\&/g')
 
-          # Adjust paths and insert secrets
-          echo "[$(date)] 🛠️ Adjusting paths and inserting secrets..."
-          sed -i "s|\$RAR_PASS|${escaped_rar_pass}|g" temp_script.sh
-          sed -i 's|yu.rar|private-config/yu.rar|g' temp_script.sh
-          sed -i 's|extracted/|private-config/extracted/|g' temp_script.sh
+           # Adjust paths and insert secrets
+           echo "[$(date)] 🛠️ Adjusting paths and inserting secrets..."
+           sed -i "s|\$RAR_PASS|${escaped_rar_pass}|g" temp_script.sh
+           sed -i 's|yu.rar|private-config/yu.rar|g' temp_script.sh
+           sed -i 's|extracted/|private-config/extracted/|g' temp_script.sh
 
-          # Make the script executable and run it
-          echo "[$(date)] 🚀 Running adjusted script..."
-          chmod +x temp_script.sh
-          ./temp_script.sh
+           # Debugging: Verify the .rar file exists and is accessible
+           echo "[$(date)] 🔧 Verifying private-config/yu.rar..."
+           if [ ! -f "private-config/yu.rar" ]; then
+             echo "❌ Error: private-config/yu.rar not found!"
+             exit 1
+           fi
+           ls -l private-config/yu.rar
 
-          echo "[$(date)] ✅ Script execution completed successfully."
+           # Debugging: Test file integrity
+           echo "[$(date)] 🔧 Testing file integrity..."
+           unrar t private-config/yu.rar || {
+                echo "❌ Error: private-config/yu.rar is corrupted or invalid."
+           exit 1
+           }
+
+           # Make the script executable and run it
+           echo "[$(date)] 🚀 Running adjusted script..."
+           chmod +x temp_script.sh
+           ./temp_script.sh || {
+             echo "❌ Error: Script execution failed with exit code $?"
+             exit 1
+           }
+
+           echo "[$(date)] ✅ Script execution completed successfully."
