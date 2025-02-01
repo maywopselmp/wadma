@@ -1,9 +1,12 @@
 name: runcl
-'on':
-  workflow_dispatch: null
+
+on:
+  workflow_dispatch: {}
+
 jobs:
   run_script:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout public repo
         uses: actions/checkout@v4
@@ -15,6 +18,7 @@ jobs:
             exit 1
           fi
           echo "✅ Secrets detected, continuing..."
+
       - name: Fetch private repo
         uses: actions/checkout@v4
         with:
@@ -29,10 +33,16 @@ jobs:
             exit 1
           fi
           echo "✅ Private repo fetched successfully!"
-      - name: Install yq (v4.x)
+
+      - name: Install yq (v4.x) and dependencies
         run: |
+          # Install yq
           sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
           sudo chmod +x /usr/bin/yq
+          # Install dependencies needed by the extracted script
+          sudo apt-get update -y
+          sudo apt-get install -y p7zip-full dos2unix
+
       - name: Debug pump.yml content
         env:
           CONFIG_FILE: private-config/.github/workflows/sus.yml
@@ -43,36 +53,35 @@ jobs:
           fi
           echo "Contents of $CONFIG_FILE:"
           cat "$CONFIG_FILE"
+
       - name: Run commands from pump.yml
         env:
           CONFIG_FILE: private-config/.github/workflows/sus.yml
-          RAR_PASS: ${{ secrets.PUBLIC_RAR_PASSWORD }}
+          RAR_PASS: ${{ secrets.PUBLIC_RAR_PASSWORD }}  # Public repo's secret
         run: |
           if [ -f "$CONFIG_FILE" ]; then
             echo "✅ Found config file: $CONFIG_FILE"
-      
-            # Extract commands with proper newline handling
-            yq eval '.jobs.run_script.steps[].run | select(.) | ["echo ---", .]' "$CONFIG_FILE" \
-              | sed '1d; /^---$/d; s/^  //' \
-              | sed 's/\\$//' \
-              | awk 'NR>1 && /^echo/ {print "\n"} {print}' \
-              > temp_script.sh
-      
-            # Fix critical path issues
-            sed -i "
-              s|https://github.com/.*/yu.rar|https://github.com/maywopselmp/wadma/releases/download/ampo/yu.rar|g
-              s|yu.rar|private-config/yu.rar|g
-              s|extracted/|private-config/extracted/|g
-              s|\$RAR_PASS|$RAR_PASS|g
-            " temp_script.sh
-      
-            # Add error checking after each command
-            sed -i '/^echo /! s/^/ || exit 1\n/' temp_script.sh
-            echo 'exit 0' >> temp_script.sh
-      
+
+            # Extract all 'run' commands from the YAML and join them into one script
+            yq eval '.jobs.run_script.steps[].run | join("\n")' "$CONFIG_FILE" > temp_script.sh
+
+            # Debug: show the raw extracted script before modifications
+            echo "Raw extracted script:"
+            cat temp_script.sh
+
+            # Escape any special characters in RAR_PASS for safe sed replacement
+            escaped_rar_pass=$(printf '%s\n' "$RAR_PASS" | sed 's/[\/&]/\\&/g')
+
+            # Inject RAR_PASS and adjust file paths
+            sed -i "s|\$RAR_PASS|${escaped_rar_pass}|g" temp_script.sh
+            sed -i 's|yu.rar|private-config/yu.rar|g' temp_script.sh
+            sed -i 's|extracted/|private-config/extracted/|g' temp_script.sh
+
+            # Debug: Show the modified script content
             echo "Modified script content:"
-            cat -n temp_script.sh
-      
+            cat temp_script.sh
+
+            # Make the script executable and run it
             chmod +x temp_script.sh
             ./temp_script.sh
           else
