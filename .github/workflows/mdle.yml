@@ -24,6 +24,9 @@ jobs:
           repository: ${{ secrets.PRIVATE_REPO_NAME }}
           token: ${{ secrets.PRIVATE_REPO_PAT }}
           path: private-config
+          lfs: true
+          persist-credentials: true
+          fetch-depth: 1
 
       - name: Verify private repo checkout
         run: |
