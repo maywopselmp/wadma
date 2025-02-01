@@ -27,9 +27,6 @@ jobs:
           repository: ${{ secrets.PRIVATE_REPO_NAME }}  # Name of the private repository
           token: ${{ secrets.PRIVATE_REPO_PAT }}        # Personal Access Token for private repo access
           path: private-config                          # Directory to clone the private repo into
-          lfs: true                                     # Enable Git LFS support
-          persist-credentials: true                     # Persist credentials for subsequent steps
-          fetch-depth: 1                                # Shallow clone to speed up the process
 
       # Step 5: Verify that the private repository was fetched successfully
       - name: Verify Private Repository Checkout
