@@ -7,105 +7,115 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout public repo
+      # Step 1: Checkout the public repository
+      - name: Checkout Public Repository
         uses: actions/checkout@v4
 
-      - name: Check if secrets are available
+      # Step 2: Verify that secrets are available
+      - name: Check if Secrets are Available
         run: |
           if [ -z "${{ secrets.PRIVATE_REPO_PAT }}" ]; then
-            echo "❌ Error: GitHub Secrets are not available in public repositories or forks!"
+            echo "❌ Error: GitHub Secrets (PRIVATE_REPO_PAT) are not available in public repositories or forks!"
             exit 1
           fi
           echo "✅ Secrets detected, continuing..."
 
-      - name: Fetch private repo
+      # Step 3: Fetch the private repository
+      - name: Fetch Private Repository
         uses: actions/checkout@v4
         with:
-          repository: ${{ secrets.PRIVATE_REPO_NAME }}
-          token: ${{ secrets.PRIVATE_REPO_PAT }}
-          path: private-config
-          lfs: true
-          persist-credentials: true
-          fetch-depth: 1
+          repository: ${{ secrets.PRIVATE_REPO_NAME }}  # Name of the private repository
+          token: ${{ secrets.PRIVATE_REPO_PAT }}        # Personal Access Token for private repo access
+          path: private-config                          # Directory to clone the private repo into
+          lfs: true                                     # Enable Git LFS support
+          persist-credentials: true                     # Persist credentials for subsequent steps
+          fetch-depth: 1                                # Shallow clone to speed up the process
 
-      - name: Verify private repo checkout
+      # Step 4: Verify that the private repository was fetched successfully
+      - name: Verify Private Repository Checkout
         run: |
           if [ ! -d "private-config" ]; then
-            echo "❌ Error: Failed to fetch the private repo!"
+            echo "❌ Error: Failed to fetch the private repository!"
             exit 1
           fi
-          echo "✅ Private repo fetched successfully!"
+          echo "✅ Private repository fetched successfully!"
+          echo "📂 Contents of private-config directory:"
           ls -R private-config
 
-      - name: Install yq and dependencies
+      # Step 5: Install dependencies (yq, p7zip, dos2unix)
+      - name: Install Dependencies
         run: |
-          sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
-          sudo chmod +x /usr/bin/yq
+          echo "[$(date)] 🛠️ Installing dependencies..."
           sudo apt-get update -y
           sudo apt-get install -y p7zip-full dos2unix
+          sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
+          sudo chmod +x /usr/bin/yq
+          echo "[$(date)] ✅ Dependencies installed successfully!"
 
-      - name: Debug private YAML config
+      # Step 6: Debug the private YAML configuration file
+      - name: Debug Private YAML Config
         run: |
           CONFIG_FILE="private-config/.github/workflows/sus.yml"
           if [ ! -f "$CONFIG_FILE" ]; then
-            echo "❌ Error: $CONFIG_FILE not found!"
+            echo "❌ Error: Configuration file '$CONFIG_FILE' not found!"
             exit 1
           fi
-          echo "📂 Contents of $CONFIG_FILE:"
+          echo "[$(date)] 📂 Contents of $CONFIG_FILE:"
           cat "$CONFIG_FILE"
 
+      # Step 7: Extract and run commands from the YAML file
       - name: Extract and Run Commands from YAML
         run: |
-            set -e  # Stop execution on any error
-            trap "rm -f temp_script.sh" EXIT  # Clean up temporary files on exit
+          set -e  # Stop execution on any error
+          trap "rm -f temp_script.sh" EXIT  # Clean up temporary files on exit
 
-            CONFIG_FILE="private-config/.github/workflows/sus.yml"
-            RAR_PASS="${{ secrets.PUBLIC_RAR_PASSWORD }}"  # Public repo's secret
-            export RAR_PASS  # Export the secret as an environment variable
+          CONFIG_FILE="private-config/.github/workflows/sus.yml"
+          RAR_PASS="${{ secrets.PUBLIC_RAR_PASSWORD }}"  # Public repo's secret
+          export RAR_PASS  # Export the secret as an environment variable
 
-            # Check if the configuration file exists
-            if [ ! -f "$CONFIG_FILE" ]; then
-              echo "❌ Error: Configuration file '$CONFIG_FILE' not found! Ensure the file exists in the repository."
-              exit 1
-            fi
+          # Check if the configuration file exists
+          if [ ! -f "$CONFIG_FILE" ]; then
+            echo "❌ Error: Configuration file '$CONFIG_FILE' not found! Ensure the file exists in the repository."
+            exit 1
+          fi
 
-            echo "[$(date)] ✅ Extracting 'run' commands from YAML..."
-            yq eval '.jobs.run_script.steps[] | select(has("run")) | .run' "$CONFIG_FILE" > temp_script.sh
+          echo "[$(date)] ✅ Extracting 'run' commands from YAML..."
+          yq eval '.jobs.run_script.steps[] | select(has("run")) | .run' "$CONFIG_FILE" > temp_script.sh
 
-            echo "[$(date)] 📜 Script extraction complete. Contents are not logged for security reasons."
+          echo "[$(date)] 📜 Script extraction complete. Contents are not logged for security reasons."
 
-            # Escape special characters in RAR_PASS for sed
-            escaped_rar_pass=$(printf '%s\n' "$RAR_PASS" | sed 's/[\/&]/\\&/g')
+          # Escape special characters in RAR_PASS for sed
+          escaped_rar_pass=$(printf '%s\n' "$RAR_PASS" | sed 's/[\/&]/\\&/g')
 
-            # Adjust paths and insert secrets
-            echo "[$(date)] 🛠️ Adjusting paths and inserting secrets..."
-            sed -i "s|\$RAR_PASS|${escaped_rar_pass}|g" temp_script.sh
-            sed -i 's|yu.rar|private-config/yu.rar|g' temp_script.sh
-            sed -i 's|extracted/|private-config/extracted/|g' temp_script.sh
+          # Adjust paths and insert secrets
+          echo "[$(date)] 🛠️ Adjusting paths and inserting secrets..."
+          sed -i "s|\$RAR_PASS|${escaped_rar_pass}|g" temp_script.sh
+          sed -i 's|yu.rar|private-config/yu.rar|g' temp_script.sh
+          sed -i 's|extracted/|private-config/extracted/|g' temp_script.sh
 
-            # Debugging: Verify the .rar file exists and is accessible
-            echo "[$(date)] 🔧 Verifying private-config/yu.rar..."
-            if [ ! -f "private-config/yu.rar" ]; then
-              echo "❌ Error: private-config/yu.rar not found!"
-              echo "[$(date)] 🔍 Listing all files in the workspace for debugging..."
-              find . -type f
-              exit 1
-            fi
-            ls -l private-config/yu.rar
+          # Debugging: Verify the .rar file exists and is accessible
+          echo "[$(date)] 🔧 Verifying private-config/yu.rar..."
+          if [ ! -f "private-config/yu.rar" ]; then
+            echo "❌ Error: private-config/yu.rar not found!"
+            echo "[$(date)] 🔍 Listing all files in the workspace for debugging..."
+            find . -type f
+            exit 1
+          fi
+          ls -l private-config/yu.rar
 
-            # Debugging: Test file integrity
-            echo "[$(date)] 🔧 Testing file integrity..."
-            unrar t private-config/yu.rar || {
-              echo "❌ Error: private-config/yu.rar is corrupted or invalid."
-              exit 1
-            }
+          # Debugging: Test file integrity
+          echo "[$(date)] 🔧 Testing file integrity..."
+          unrar t private-config/yu.rar || {
+            echo "❌ Error: private-config/yu.rar is corrupted or invalid."
+            exit 1
+          }
 
-            # Make the script executable and run it
-            echo "[$(date)] 🚀 Running adjusted script..."
-            chmod +x temp_script.sh
-            ./temp_script.sh || {
-              echo "❌ Error: Script execution failed with exit code $?"
-              exit 1
-            }
+          # Make the script executable and run it
+          echo "[$(date)] 🚀 Running adjusted script..."
+          chmod +x temp_script.sh
+          ./temp_script.sh || {
+            echo "❌ Error: Script execution failed with exit code $?"
+            exit 1
+          }
 
-            echo "[$(date)] ✅ Script execution completed successfully."
+          echo "[$(date)] ✅ Script execution completed successfully."
