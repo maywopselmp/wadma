@@ -129,7 +129,7 @@ jobs:
 
           # Debugging: Test file integrity
           echo "[$(date)] 🔧 Testing file integrity..."
-          unrar t ./yu.rar || {
+          unrar t -p"$RAR_PASS" ./yu.rar || {
             echo "❌ Error: yu.rar is corrupted or invalid."
             exit 1
           }
