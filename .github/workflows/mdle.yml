@@ -62,9 +62,8 @@ jobs:
           if [ -f "$CONFIG_FILE" ]; then
             echo "✅ Found config file: $CONFIG_FILE"
 
-            # Try to join the 'run' commands if it's an array;
-            # if that fails (because it's a string), just use the string.
-            yq eval 'try (.jobs.run_script.steps[].run | join("\n")) catch .jobs.run_script.steps[].run' "$CONFIG_FILE" > temp_script.sh
+            # Extract 'run' commands, wrapping in an array and flattening before joining.
+            yq eval '[.jobs.run_script.steps[].run] | flatten | join("\n")' "$CONFIG_FILE" > temp_script.sh
 
             # Debug: show the raw extracted script before modifications
             echo "Raw extracted script:"
