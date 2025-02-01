@@ -31,6 +31,13 @@ jobs:
           persist-credentials: true                     # Persist credentials for subsequent steps
           fetch-depth: 1                                # Shallow clone to speed up the process
 
+      # Step 4: Initialize Git LFS (if applicable)
+      - name: Initialize Git LFS
+        run: |
+          echo "[$(date)] 🛠️ Initializing Git LFS..."
+          git lfs install
+          git lfs pull
+
       # Step 5: Verify that the private repository was fetched successfully
       - name: Verify Private Repository Checkout
         run: |
@@ -42,12 +49,12 @@ jobs:
           echo "📂 Contents of private-config directory:"
           ls -R private-config
 
-      # Step 6: Install dependencies (yq, p7zip, dos2unix)
+      # Step 6: Install dependencies (yq, p7zip, dos2unix, unrar)
       - name: Install Dependencies
         run: |
           echo "[$(date)] 🛠️ Installing dependencies..."
           sudo apt-get update -y
-          sudo apt-get install -y p7zip-full dos2unix wget
+          sudo apt-get install -y p7zip-full dos2unix wget unrar
           sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
           sudo chmod +x /usr/bin/yq
           echo "[$(date)] ✅ Dependencies installed successfully!"
