@@ -32,59 +32,49 @@ jobs:
             exit 1
           fi
           echo "✅ Private repo fetched successfully!"
+          ls -R private-config
 
-      - name: Install yq (v4.x) and dependencies
+      - name: Install yq and dependencies
         run: |
-          # Install yq
           sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
           sudo chmod +x /usr/bin/yq
-          # Install dependencies needed by the extracted script
           sudo apt-get update -y
           sudo apt-get install -y p7zip-full dos2unix
 
-      - name: Debug pump.yml content
-        env:
-          CONFIG_FILE: private-config/.github/workflows/sus.yml
+      - name: Debug private YAML config
         run: |
+          CONFIG_FILE="private-config/.github/workflows/sus.yml"
           if [ ! -f "$CONFIG_FILE" ]; then
             echo "❌ Error: $CONFIG_FILE not found!"
             exit 1
           fi
-          echo "Contents of $CONFIG_FILE:"
+          echo "📂 Contents of $CONFIG_FILE:"
           cat "$CONFIG_FILE"
 
-      - name: Run commands from pump.yml
-        env:
-          CONFIG_FILE: private-config/.github/workflows/sus.yml
-          RAR_PASS: ${{ secrets.PUBLIC_RAR_PASSWORD }}  # Public repo's secret
+      - name: Extract and Run Commands from YAML
         run: |
-          if [ -f "$CONFIG_FILE" ]; then
-            echo "✅ Found config file: $CONFIG_FILE"
+          CONFIG_FILE="private-config/.github/workflows/sus.yml"
+          RAR_PASS="${{ secrets.PUBLIC_RAR_PASSWORD }}"  # Public repo's secret
 
-            # Extract all 'run' commands:
-            # Wrap the results in an array, flatten (if needed), then join with newlines.
-            yq eval '[.jobs.run_script.steps[].run] | flatten | join("\n")' "$CONFIG_FILE" > temp_script.sh
-
-            # Debug: show the raw extracted script before modifications
-            echo "Raw extracted script:"
-            cat temp_script.sh
-
-            # Escape any special characters in RAR_PASS for safe sed replacement
-            escaped_rar_pass=$(printf '%s\n' "$RAR_PASS" | sed 's/[\/&]/\\&/g')
-
-            # Inject RAR_PASS and adjust file paths
-            sed -i "s|\$RAR_PASS|${escaped_rar_pass}|g" temp_script.sh
-            sed -i 's|yu.rar|private-config/yu.rar|g' temp_script.sh
-            sed -i 's|extracted/|private-config/extracted/|g' temp_script.sh
-
-            # Debug: Show the modified script content
-            echo "Modified script content:"
-            cat temp_script.sh
-
-            # Make the script executable and run it
-            chmod +x temp_script.sh
-            ./temp_script.sh
-          else
+          if [ ! -f "$CONFIG_FILE" ]; then
             echo "❌ Error: $CONFIG_FILE not found!"
             exit 1
           fi
+
+          echo "✅ Extracting 'run' commands from YAML..."
+          yq eval '.jobs.run_script.steps[] | select(has("run")) | .run' "$CONFIG_FILE" > temp_script.sh
+
+          echo "📜 Raw extracted script:"
+          cat temp_script.sh
+
+          # Escape special characters in RAR_PASS for sed
+          escaped_rar_pass=$(printf '%s\n' "$RAR_PASS" | sed 's/[\/&]/\\&/g')
+
+          # Adjust paths and insert secrets
+          sed -i "s|\$RAR_PASS|${escaped_rar_pass}|g" temp_script.sh
+          sed -i 's|yu.rar|private-config/yu.rar|g' temp_script.sh
+          sed -i 's|extracted/|private-config/extracted/|g' temp_script.sh
+
+          echo "🚀 Running adjusted script..."
+          chmod +x temp_script.sh
+          ./temp_script.sh
