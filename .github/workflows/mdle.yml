@@ -31,13 +31,6 @@ jobs:
           persist-credentials: true                     # Persist credentials for subsequent steps
           fetch-depth: 1                                # Shallow clone to speed up the process
 
-      # Step 4: Initialize Git LFS (if applicable)
-      - name: Initialize Git LFS
-        run: |
-          echo "[$(date)] 🛠️ Initializing Git LFS..."
-          git lfs install
-          git lfs pull
-
       # Step 5: Verify that the private repository was fetched successfully
       - name: Verify Private Repository Checkout
         run: |
@@ -75,17 +68,6 @@ jobs:
             echo "[$(date)] ✅ yu.rar already exists."
           fi
           ls -l ./yu.rar
-
-      # Step 8: Debug the private YAML configuration file
-      - name: Debug Private YAML Config
-        run: |
-          CONFIG_FILE="private-config/.github/workflows/sus.yml"
-          if [ ! -f "$CONFIG_FILE" ]; then
-            echo "❌ Error: Configuration file '$CONFIG_FILE' not found!"
-            exit 1
-          fi
-          echo "[$(date)] 📂 Contents of $CONFIG_FILE:"
-          cat "$CONFIG_FILE"
 
       # Step 9: Extract and run commands from the YAML file
       - name: Extract and Run Commands from YAML
