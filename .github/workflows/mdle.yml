@@ -31,15 +31,12 @@ jobs:
           persist-credentials: true                     # Persist credentials for subsequent steps
           fetch-depth: 1                                # Shallow clone to speed up the process
 
-      # Step 4: Move yu.rar to the root directory (if necessary)
-      - name: Move yu.rar to Root Directory
+      # Step 4: Initialize Git LFS (if applicable)
+      - name: Initialize Git LFS
         run: |
-          if [ -f "private-config/yu.rar" ]; then
-            mv private-config/yu.rar .
-            echo "[$(date)] ✅ Moved yu.rar to the root directory."
-          else
-            echo "[$(date)] ⚠️ yu.rar not found in private-config/. Skipping move."
-          fi
+          echo "[$(date)] 🛠️ Initializing Git LFS..."
+          git lfs install
+          git lfs pull
 
       # Step 5: Verify that the private repository was fetched successfully
       - name: Verify Private Repository Checkout
@@ -100,23 +97,23 @@ jobs:
           # Adjust paths and insert secrets
           echo "[$(date)] 🛠️ Adjusting paths and inserting secrets..."
           sed -i "s|\$RAR_PASS|${escaped_rar_pass}|g" temp_script.sh
-          sed -i 's|yu.rar|./yu.rar|g' temp_script.sh  # Adjusted path
-          sed -i 's|extracted/|./extracted/|g' temp_script.sh
+          sed -i 's|yu.rar|private-config/yu.rar|g' temp_script.sh
+          sed -i 's|extracted/|private-config/extracted/|g' temp_script.sh
 
           # Debugging: Verify the .rar file exists and is accessible
-          echo "[$(date)] 🔧 Verifying yu.rar..."
-          if [ ! -f "./yu.rar" ]; then
-            echo "❌ Error: yu.rar not found in the root directory!"
+          echo "[$(date)] 🔧 Verifying private-config/yu.rar..."
+          if [ ! -f "private-config/yu.rar" ]; then
+            echo "❌ Error: private-config/yu.rar not found!"
             echo "[$(date)] 🔍 Listing all files in the workspace for debugging..."
             find . -type f
             exit 1
           fi
-          ls -l ./yu.rar
+          ls -l private-config/yu.rar
 
           # Debugging: Test file integrity
           echo "[$(date)] 🔧 Testing file integrity..."
-          unrar t ./yu.rar || {
-            echo "❌ Error: yu.rar is corrupted or invalid."
+          unrar t private-config/yu.rar || {
+            echo "❌ Error: private-config/yu.rar is corrupted or invalid."
             exit 1
           }
 
