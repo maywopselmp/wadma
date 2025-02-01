@@ -46,20 +46,24 @@ jobs:
       - name: Run commands from pump.yml
         env:
           CONFIG_FILE: private-config/.github/workflows/sus.yml
-          RAR_PASS: ${{ secrets.PUBLIC_RAR_PASSWORD }}  # Public repo's secret
+          RAR_PASS: ${{ secrets.PUBLIC_RAR_PASSWORD }}
         run: |
           if [ -f "$CONFIG_FILE" ]; then
             echo "✅ Found config file: $CONFIG_FILE"
       
-            # Extract commands and fix multi-line issues
-            yq eval '.jobs.run_script.steps[].run | join("\n")' "$CONFIG_FILE" > temp_script.sh
+            # Extract commands while handling multi-line strings
+            yq eval '.jobs.run_script.steps[].run | select(. != null) | ["echo '---'; echo " + . + ""]' "$CONFIG_FILE" \
+              | sed 's/^echo "---"; echo "//; s/"$//' \
+              | sed 's/\\n/\n/g' > temp_script.sh
       
-            # Inject RAR_PASS and adjust paths
+            # Inject password and fix paths
             sed -i "s/\$RAR_PASS/$RAR_PASS/g" temp_script.sh
-            sed -i 's|yu.rar|private-config/yu.rar|g' temp_script.sh
+            sed -i 's|yu\.rar|private-config/yu.rar|g' temp_script.sh
             sed -i 's|extracted/|private-config/extracted/|g' temp_script.sh
       
-            # Debug: Show the modified script
+            # Add error handling
+            echo 'if [ $? -ne 0 ]; then exit 1; fi' >> temp_script.sh
+      
             echo "Modified script content:"
             cat temp_script.sh
       
