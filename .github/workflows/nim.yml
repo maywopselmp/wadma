@@ -26,9 +26,6 @@ jobs:
           repository: ${{ secrets.PRIVATE_REPO_NAME }}  # Name of the private repository
           token: ${{ secrets.PRIVATE_REPO_PAT }}        # Personal Access Token for private repo access
           path: private-config                          # Directory to clone the private repo into
-          lfs: true                                     # Enable Git LFS support
-          persist-credentials: true                     # Persist credentials for subsequent steps
-          fetch-depth: 1                                # Shallow clone to speed up the process
 
       # Step 4: Debug Private Repository Content
       - name: Debug Private Repository Content
@@ -85,27 +82,6 @@ jobs:
           }
 
           echo "[$(date)] ✅ Private repository's script executed successfully."
-
-      # Step 7: Verify yu.rar exists after running the private script
-      - name: Verify yu.rar Exists
-        run: |
-          echo "[$(date)] 🔧 Verifying yu.rar..."
-          if [ ! -f "./yu.rar" ]; then
-            echo "❌ Error: yu.rar not found after running the private repository's script!"
-            echo "[$(date)] 🔍 Listing all files in the workspace for debugging..."
-            find . -type f
-            exit 1
-          fi
-          ls -l ./yu.rar
-
-          # Debugging: Test file integrity
-          echo "[$(date)] 🔧 Testing file integrity..."
-          unrar t -p"$RAR_PASS" ./yu.rar || {
-            echo "❌ Error: yu.rar is corrupted or invalid."
-            exit 1
-          }
-
-          echo "[$(date)] ✅ yu.rar verified successfully."
 
       # Step 8: Proceed with further processing (if needed)
       - name: Further Processing
