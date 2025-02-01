@@ -1,7 +1,6 @@
 name: runcl
-
-on:
-  workflow_dispatch: {}
+'on':
+  workflow_dispatch: null
 
 jobs:
   run_script:
